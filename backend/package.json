@@ -1,0 +1,38 @@
+{
+  "name": "@rag/backend",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "build": "nest build",
+    "start": "node dist/main.js",
+    "start:dev": "nest start --watch"
+  },
+  "dependencies": {
+    "@langchain/community": "^1.1.27",
+    "@langchain/core": "^1.1.40",
+    "@langchain/openai": "^1.4.4",
+    "@langchain/textsplitters": "^1.0.1",
+    "@nestjs/common": "^11.0.12",
+    "@nestjs/config": "^4.0.0",
+    "@nestjs/core": "^11.0.12",
+    "@nestjs/platform-express": "^11.0.12",
+    "@zilliz/milvus2-sdk-node": "^2.6.13",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    "dotenv": "^16.4.7",
+    "epub2": "^3.0.2",
+    "html-to-text": "^9.0.5",
+    "mammoth": "^1.12.0",
+    "pdf-parse": "^2.4.5",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.5",
+    "@nestjs/schematics": "^11.0.5",
+    "@types/express": "^5.0.0",
+    "@types/multer": "^2.1.0",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2"
+  }
+}

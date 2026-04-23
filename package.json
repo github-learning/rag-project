@@ -1,0 +1,15 @@
+{
+  "name": "rag-project",
+  "private": true,
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "build": "pnpm -r run build",
+    "dev:backend": "pnpm --filter @rag/backend start:dev",
+    "dev:frontend": "pnpm --filter @rag/frontend dev",
+    "dev": "concurrently -n backend,frontend -c blue,green \"pnpm dev:backend\" \"pnpm dev:frontend\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
