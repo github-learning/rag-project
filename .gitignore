@@ -43,8 +43,9 @@ Thumbs.db
 .idea/
 .vscode/
 
-# 本地 Docker / 向量库等数据目录（勿提交大体积运行时数据）
-volumes/
+# 本地 Docker（Milvus 常用 etcd + MinIO）持久化数据，勿提交大文件
+volumes/**
+!volumes/README.md
 
 # 打包产物 / 临时文件
 *.tgz
