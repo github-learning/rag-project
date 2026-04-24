@@ -12,6 +12,7 @@ import {
   chunkText,
   extractTextFromBuffer,
   makeBookIdFromFilename,
+  normalizeUploadOriginalname,
 } from './file-ingest.util';
 import { createEpubTextSplitter, loadEpubChapterTexts } from './epub-ingest.util';
 
@@ -61,6 +62,12 @@ export class VectorService implements OnModuleInit {
       this.logger.warn('OPENAI_API_KEY 未设置：向量检索将无法计算 query embedding');
     }
 
+    // DashScope 等兼容接口限制单次 embedding 条数（如 ≤10）；官方 OpenAI 可设更大，见 EMBEDDING_BATCH_SIZE
+    const batchParsed = parseInt(this.config.get<string>('EMBEDDING_BATCH_SIZE', '10'), 10);
+    const embeddingBatchSize = Number.isFinite(batchParsed)
+      ? Math.min(2048, Math.max(1, batchParsed))
+      : 10;
+
     this.embeddings = new OpenAIEmbeddings({
       apiKey,
       model: this.config.get<string>('EMBEDDINGS_MODEL_NAME', 'text-embedding-v3'),
@@ -68,6 +75,7 @@ export class VectorService implements OnModuleInit {
         baseURL: this.config.get<string>('OPENAI_BASE_URL'),
       },
       dimensions: this.vectorDim,
+      batchSize: embeddingBatchSize,
     });
   }
 
@@ -244,8 +252,9 @@ export class VectorService implements OnModuleInit {
     bookId: string;
     chunks: number;
   }> {
-    const bookId = makeBookIdFromFilename(file.originalname);
-    const bookName = bookTitleFromOriginalName(file.originalname);
+    const orig = normalizeUploadOriginalname(file.originalname);
+    const bookId = makeBookIdFromFilename(orig);
+    const bookName = bookTitleFromOriginalName(orig);
     const tmpPath = join(tmpdir(), `rag-epub-${randomUUID()}.epub`);
     writeFileSync(tmpPath, file.buffer);
 
@@ -254,7 +263,7 @@ export class VectorService implements OnModuleInit {
       log(`EPUB《${bookName}》：写入临时文件，开始解析章节…`);
       const chapters = await loadEpubChapterTexts(tmpPath);
       if (!chapters.length) {
-        throw new BadRequestException(`EPUB 未解析出章节内容：${file.originalname}`);
+        throw new BadRequestException(`EPUB 未解析出章节内容：${orig}`);
       }
 
       log(`EPUB《${bookName}》：共 ${chapters.length} 章（500 字块、重叠 50），按章向量化并写入 Milvus`);
@@ -295,7 +304,7 @@ export class VectorService implements OnModuleInit {
       }
     }
 
-    return { originalName: file.originalname, bookId, chunks: totalChunks };
+    return { originalName: orig, bookId, chunks: totalChunks };
   }
 
   /**
@@ -333,9 +342,10 @@ export class VectorService implements OnModuleInit {
     let totalChunks = 0;
 
     for (const file of files) {
-      const lower = file.originalname.toLowerCase();
+      const orig = normalizeUploadOriginalname(file.originalname);
+      const lower = orig.toLowerCase();
       const sizeKb = (file.buffer?.length ?? 0) / 1024;
-      log(`—— ${file.originalname}（约 ${sizeKb.toFixed(1)} KB）——`);
+      log(`—— ${orig}（约 ${sizeKb.toFixed(1)} KB）——`);
 
       if (lower.endsWith('.epub')) {
         const r = await this.ingestEpubFile(file, log);
@@ -347,7 +357,7 @@ export class VectorService implements OnModuleInit {
       let text: string;
       try {
         log(`  提取文本…`);
-        text = await extractTextFromBuffer(file.buffer, file.originalname);
+        text = await extractTextFromBuffer(file.buffer, orig);
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
         if (msg.startsWith('UNSUPPORTED_TYPE:')) {
@@ -356,11 +366,11 @@ export class VectorService implements OnModuleInit {
             `不支持的文件类型：${name}。当前支持 .txt、.md、.pdf、.docx、.epub`,
           );
         }
-        throw new BadRequestException(`解析文件失败（${file.originalname}）：${msg}`);
+        throw new BadRequestException(`解析文件失败（${orig}）：${msg}`);
       }
 
       if (!text.trim()) {
-        throw new BadRequestException(`文件未解析出有效文本：${file.originalname}`);
+        throw new BadRequestException(`文件未解析出有效文本：${orig}`);
       }
 
       const chunks = chunkText(text);
@@ -369,8 +379,8 @@ export class VectorService implements OnModuleInit {
         continue;
       }
 
-      const bookId = makeBookIdFromFilename(file.originalname);
-      const bookName = bookTitleFromOriginalName(file.originalname);
+      const bookId = makeBookIdFromFilename(orig);
+      const bookName = bookTitleFromOriginalName(orig);
 
       log(`  切分为 ${chunks.length} 段（《${bookName}》），请求 Embedding…`);
       let vectors: number[][];
@@ -399,7 +409,7 @@ export class VectorService implements OnModuleInit {
       log(`  写入 Milvus（${chunks.length} 条）并 flush…`);
       await this.insertMilvusRows(fields_data);
 
-      results.push({ originalName: file.originalname, bookId, chunks: chunks.length });
+      results.push({ originalName: orig, bookId, chunks: chunks.length });
       totalChunks += chunks.length;
       log(`  完成：本文件 ${chunks.length} 条向量`);
     }

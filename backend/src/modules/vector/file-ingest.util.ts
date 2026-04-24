@@ -1,6 +1,23 @@
 import mammoth from 'mammoth';
 import { basename, parse } from 'node:path';
 
+/**
+ * Multer 常把 multipart 里 UTF-8 文件名按 latin1 读成乱码；若原文无汉字而 latin1→utf8 后出现汉字，则用转码结果。
+ */
+export function normalizeUploadOriginalname(name: string): string {
+  if (!name) return name;
+  let candidate: string;
+  try {
+    candidate = Buffer.from(name, 'latin1').toString('utf8');
+  } catch {
+    return name;
+  }
+  if (candidate.includes('\uFFFD')) return name;
+  if (/[\u4e00-\u9fff]/.test(name)) return name;
+  if (/[\u4e00-\u9fff]/.test(candidate)) return candidate;
+  return name;
+}
+
 /** 将正文切成适合向量化的片段（按长度 + 尽量在句号/换行处断开） */
 export function chunkText(text: string, maxLen = 900, overlap = 120): string[] {
   const normalized = text.replace(/\r\n/g, '\n').replace(/\u0000/g, '').trim();
@@ -48,12 +65,13 @@ export async function extractTextFromBuffer(buffer: Buffer, originalname: string
 }
 
 export function makeBookIdFromFilename(filename: string): string {
-  const base = filename.replace(/[^a-zA-Z0-9\u4e00-\u9fa5._-]/g, '_').slice(0, 120);
+  const normalized = normalizeUploadOriginalname(filename);
+  const base = normalized.replace(/[^a-zA-Z0-9\u4e00-\u9fa5._-]/g, '_').slice(0, 120);
   return `${Date.now()}_${base || 'upload'}`;
 }
 
 /** 从上传文件名取书名（去扩展名），对齐 ebook-writer 的 BOOK_NAME */
 export function bookTitleFromOriginalName(originalname: string): string {
-  const name = basename(originalname);
+  const name = basename(normalizeUploadOriginalname(originalname));
   return parse(name).name || name;
 }
