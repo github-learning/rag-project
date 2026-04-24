@@ -55,10 +55,21 @@ export async function extractTextFromBuffer(buffer: Buffer, originalname: string
   }
 
   if (lower.endsWith('.pdf')) {
+    // pdf-parse@2 为 PDFParse + getText()；v1 的 pdf(buffer) 已不可用
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdfParse = require('pdf-parse') as (b: Buffer) => Promise<{ text?: string }>;
-    const data = await pdfParse(buffer);
-    return data.text ?? '';
+    const { PDFParse } = require('pdf-parse') as {
+      PDFParse: new (opts: { data: Buffer }) => {
+        getText: () => Promise<{ text?: string }>;
+        destroy: () => Promise<void>;
+      };
+    };
+    const parser = new PDFParse({ data: buffer });
+    try {
+      const result = await parser.getText();
+      return result.text ?? '';
+    } finally {
+      await parser.destroy();
+    }
   }
 
   throw new Error(`UNSUPPORTED_TYPE:${originalname}`);
