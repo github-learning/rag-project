@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Environment & secrets（保留仓库里的 env.example / env 模板即可）
+.env
+.env.*
+!.env.example
+!**/.env.example
+# 若模板文件名不同，可显式取消忽略：
+!**/env.example
+
+# Logs & debug
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test & coverage
+coverage/
+.nyc_output/
+
+# Caches & tooling
+.cache/
+.turbo/
+.vercel/
+*.pem
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE（按需删掉下面两行之一，若希望提交团队 VSCode 配置）
+.idea/
+.vscode/
+
+# 本地 Docker / 向量库等数据目录（勿提交大体积运行时数据）
+volumes/
+
+# 打包产物 / 临时文件
+*.tgz
+*.tmp
+*.temp
+tmp/
+temp/
